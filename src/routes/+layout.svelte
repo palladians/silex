@@ -1,7 +1,7 @@
 <script>
-    import "../app.css";
+import "../app.css";
+import { Toaster } from "svelte-sonner";
 </script>
 
-<main class="container mx-auto">
-    <slot></slot>
-</main>
+<Toaster />
+<slot />
