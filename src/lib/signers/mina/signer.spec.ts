@@ -1,15 +1,16 @@
 import { expect, it } from "bun:test";
+import { pathToArray } from "$lib/utils";
 import { createSigner } from "./signer";
 
 const rootPrivateKey =
-	"59eabf9e91adfc40f7529e619fd9a7b47d41621715c27ce699da9a3a741536f377c405e496c91361ff3d65de1bb60f52c0add214d186ea0721151bee914e55fb";
-const testPrivateKey = "EKEKBJEKE4HkjsZNpdq6mAg7Ekppa84F8hzPJxKaaGGtVUcuYpt5";
+	"xprv9s21ZrQH143K2qibXtqGd39wAWC6cho6YL2poXyZC1ah44GGFESc2D779kstN93jzVN5Vf68usCQnHkPMcXfjNRfBp1HkDnjadcbrYwRptF";
+const testPrivateKey = "EKEG5Dj44pUvRGwPZauMzYnneFWAyCn3qoJLCSwX2BnkJg4duYa4";
 
 it("derives a child private key", async () => {
 	const signer = createSigner();
 	const childPrivateKey = await signer.deriveChildPrivateKey({
 		rootPrivateKey,
-		derivationPath: "m/44'/12586'/0'/0/0",
+		derivationPath: pathToArray("m/44'/12586'/0'/0/0"),
 	});
 	expect(childPrivateKey).toEqual(testPrivateKey);
 });
@@ -17,13 +18,14 @@ it("derives a child private key", async () => {
 it("signs a message", async () => {
 	const signer = createSigner();
 	const message = "Bonjour";
-	const signedMessage = await signer.signMessage({
-		message,
+	const signedMessage = await signer.sign({
+		type: 0,
+		payload: message,
 		childPrivateKey: testPrivateKey,
-		options: { minaNetwork: "mainnet" },
+		network: 0,
 	});
 	expect(signedMessage).toEqual(
-		"7mXLNa1vVrj9EXWhMqvE4k15XJ9ibp4DTLPYc5GvrdcwKYk2j5d83qGLy75Wp8a3NHeahos2d7oejBmrAGMuf8FKmKernmcr",
+		"7mX2cx8F3bFr7Tcc4N9MfxdnV91PJW3NvyUVnt5JPJ2DfhAjZXsJbgD2FCQG1HdaEKjtuirJT6NhigqQhoqrdcFbc2sKmZ6M",
 	);
 });
 
@@ -36,25 +38,27 @@ it("signs a transaction", async () => {
 		amount: "3000000000",
 		fee: "100000000",
 	};
-	const signedTransaction = await signer.signTransaction({
-		unsignedTransaction: transaction,
+	const signedTransaction = await signer.sign({
+		type: 1,
+		payload: transaction,
 		childPrivateKey: testPrivateKey,
-		options: { minaNetwork: "mainnet" },
+		network: 0,
 	});
 	expect(signedTransaction).toEqual(
-		"7mXNb9QUAvMZn6aLzDYQPk75jpvhseXV1mFFLVa6P2FvdZb6JYwkDnBfn5kAB1mNQjTcUBT4b6KZ3Xg8fYUyacEJYTn4ATmB",
+		"7mX3cnNN6xZzRSYnmZtfpCXaiRfhmwdJALDXayM1HTvjTvnsBR4gQYNzreribztMvcBk4nu2YX2Cx2GM3hhPf3Z2g9toH8v5",
 	);
 });
 
 it("signs fields", async () => {
 	const signer = createSigner();
 	const fields = ["1", "2", "3"];
-	const signedFields = await signer.signFields({
-		fields,
+	const signedFields = await signer.sign({
+		type: 2,
+		payload: fields,
 		childPrivateKey: testPrivateKey,
-		options: { minaNetwork: "mainnet" },
+		network: 0,
 	});
 	expect(signedFields).toEqual(
-		"7mXCUvhLhFvG9ptrdfNceCrpThkCUyg1ct2z8uwY7eQbKz7UNmhv33TbuDjTznaypJtXRiMJyQWDnf27TH1FSXG7uJHTKAd9",
+		"7mWxizVb37wnPwUKborEy513t8GAnX1d5nmna4vgECudYA6EfHBa8xhmYqJgzDDMVFQ2THZ121xrRXK9nuq7omXNfa8WatvY",
 	);
 });

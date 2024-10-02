@@ -1,18 +1,19 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import TopBar from "$lib/components/top-bar.svelte";
-import { vaultStore } from "$lib/vault";
-import { readable, writable } from "svelte/store";
+import { pathToArray } from "$lib/utils";
+import { getVault } from "$lib/vault";
+import { writable } from "svelte/store";
 
-const vault = readable(vaultStore.getState(), vaultStore.subscribe);
+const vault = getVault();
 
 const network = writable("mina");
 const derivationPath = writable("m/44'/12586'/0'/0/0");
 
 const onSubmit = async () => {
 	await $vault.deriveAccount({
-		derivationPath: $derivationPath,
-		signer: $network,
+		derivationPath: pathToArray($derivationPath),
+		signer: 2,
 	});
 	goto("/accounts");
 };

@@ -1,5 +1,5 @@
 <script lang="ts">
-export const title = "";
+export let title = "";
 </script>
 
 <header

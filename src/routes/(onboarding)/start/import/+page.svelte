@@ -1,13 +1,13 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import TopBar from "$lib/components/top-bar.svelte";
-import { vaultStore } from "$lib/vault";
+import { getVault } from "$lib/vault";
 import { validateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { toast } from "svelte-sonner";
-import { derived, readable, writable } from "svelte/store";
+import { derived, writable } from "svelte/store";
 
-const vault = readable(vaultStore.getState(), vaultStore.subscribe);
+const vault = getVault();
 
 const mnemonic = writable("");
 const mnemonicValid = derived(mnemonic, ($mnemonic) =>

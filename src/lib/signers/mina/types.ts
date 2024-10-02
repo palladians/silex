@@ -1,6 +1,7 @@
-import type { CommonSigner, PrivateKey, PublicKey } from "$lib/signers/_/types";
+import type { CommonSignArgs, CommonSigner } from "$lib/signers/_/types";
+import type { PublicKey } from "$lib/types";
 
-type MinaUnsignedTransaction = {
+export type MinaUnsignedTransaction = {
 	readonly to: PublicKey;
 	readonly from: PublicKey;
 	readonly fee: string;
@@ -10,16 +11,18 @@ type MinaUnsignedTransaction = {
 	readonly amount?: string;
 };
 
-export type MinaSignerOptions = {};
+export type MinaSignerOptions = Record<string, unknown>;
 
-export type MinaSigner = CommonSigner<MinaUnsignedTransaction> & {
-	signFields: ({
-		fields,
-		childPrivateKey,
-		options,
-	}: {
-		fields: string[];
-		childPrivateKey: PrivateKey;
-		options?: Record<string, string>;
-	}) => Promise<string>;
-};
+export type SignPayload =
+	| {
+			type: 1;
+			payload: MinaUnsignedTransaction;
+	  }
+	| { type: 0; payload: string }
+	| { type: 2; payload: string[] };
+
+export type MinaSignArgs = CommonSignArgs & {
+	network: 0 | 1; // mainnet, testnet;
+} & SignPayload;
+
+export type MinaSigner = CommonSigner<MinaSignArgs>;

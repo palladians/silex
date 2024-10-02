@@ -1,29 +1,20 @@
 import * as MinaSigner from "$lib/signers/mina";
+import type { DerivationPath, Signer } from "$lib/types";
 import { HDKey } from "@scure/bip32";
 import { generateMnemonic, mnemonicToSeedSync } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { nanoid } from "nanoid";
-import { match } from "ts-pattern";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { readable } from "svelte/store";
+import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { createStore } from "zustand/vanilla";
 
-type DerivationPath = string;
-
-type Signer = "mina";
-
-type Account = {
+export type Account = {
 	id: string;
 	address: string;
 	derivationPath: DerivationPath;
 	signer: Signer;
 	seedId: string;
-};
-
-type SigningOptions = {
-	derivationPath: DerivationPath;
-	signer: Signer;
-	networkSpecifier?: string;
 };
 
 export type VaultData = {
@@ -54,19 +45,17 @@ export type VaultActions = {
 	getRootKey: () => Promise<{ privateKey: string; seedId: string } | undefined>;
 	generateMnemonic: () => string;
 	// Signer actions
-	signTransaction: ({
-		unsignedTransaction,
+	sign: ({
+		payload,
+		signer,
+		derivationPath,
 		options,
 	}: {
-		unsignedTransaction: any;
-		options: SigningOptions;
-	}) => Promise<string>;
-	signMessage: ({
-		message,
-		options,
-	}: {
-		message: string;
-		options: SigningOptions;
+		payload: unknown;
+		type: number;
+		signer: Signer;
+		derivationPath: DerivationPath;
+		options?: number[];
 	}) => Promise<string>;
 };
 
@@ -76,10 +65,7 @@ const initialState: VaultData = {
 	accounts: [],
 };
 
-const _getSigner = (signer: Signer) =>
-	match(signer)
-		.with("mina", () => MinaSigner.createSigner())
-		.exhaustive();
+const _getSigner = (_: Signer) => MinaSigner.createSigner();
 
 export const vaultStore = createStore<VaultStore>()(
 	persist(
@@ -93,13 +79,14 @@ export const vaultStore = createStore<VaultStore>()(
 			removeAccount: (id) =>
 				set(({ accounts }) => {
 					const index = accounts.findIndex((account) => account.id === id);
-					delete accounts[index];
+					accounts.splice(index, 1);
 				}),
 			getAccountBySignerAndDerivationPath: ({ signer, derivationPath }) => {
+				const derivationPathString = derivationPath.toString();
 				return get().accounts.find(
 					(account) =>
 						account.signer === signer &&
-						account.derivationPath === derivationPath,
+						account.derivationPath.toString() === derivationPathString,
 				);
 			},
 			deriveAccount: async ({ derivationPath, signer }) => {
@@ -150,49 +137,32 @@ export const vaultStore = createStore<VaultStore>()(
 					seedId: passwordCredential.id,
 				};
 			},
-			signMessage: async ({ message, options }) => {
+			sign: async ({ payload, type, derivationPath, signer, options }) => {
 				const { getAccountBySignerAndDerivationPath, getRootKey } = get();
 				const seedId = getAccountBySignerAndDerivationPath({
-					signer: options.signer,
-					derivationPath: options.derivationPath,
+					signer,
+					derivationPath: derivationPath,
 				})?.seedId;
 				if (!seedId) throw new Error("Seed not found");
-				const signer = _getSigner(options.signer);
+				const signerInstance = _getSigner(signer);
 				const rootKey = await getRootKey();
 				if (!rootKey) throw new Error("Root private key not found");
 				if (rootKey.seedId !== seedId) throw new Error("Seed ID mismatch");
-				const childPrivateKey = await signer.deriveChildPrivateKey({
-					derivationPath: options.derivationPath,
+				const childPrivateKey = await signerInstance.deriveChildPrivateKey({
+					derivationPath: derivationPath,
 					rootPrivateKey: rootKey.privateKey,
 				});
-				return signer.signMessage({
-					message,
+				return signerInstance.sign({
+					payload: payload as never,
 					childPrivateKey,
-					options: { minaNetwork: options.networkSpecifier ?? "mainnet" },
-				});
-			},
-			signTransaction: async ({ unsignedTransaction, options }) => {
-				const { getAccountBySignerAndDerivationPath, getRootKey } = get();
-				const seedId = getAccountBySignerAndDerivationPath({
-					signer: options.signer,
-					derivationPath: options.derivationPath,
-				})?.seedId;
-				if (!seedId) throw new Error("Seed not found");
-				const signer = _getSigner(options.signer);
-				const rootKey = await getRootKey();
-				if (!rootKey) throw new Error("Root private key not found");
-				if (rootKey.seedId !== seedId) throw new Error("Seed ID mismatch");
-				const childPrivateKey = await signer.deriveChildPrivateKey({
-					derivationPath: options.derivationPath,
-					rootPrivateKey: rootKey.privateKey,
-				});
-				return signer.signTransaction({
-					unsignedTransaction,
-					childPrivateKey,
-					options: { minaNetwork: options.networkSpecifier ?? "mainnet" },
+					type: type as 0 | 1 | 2,
+					network: (options?.[0] ?? 0) as 0 | 1,
 				});
 			},
 		})),
 		{ name: "silex_vault" },
 	),
 );
+
+export const getVault = () =>
+	readable(vaultStore.getState(), vaultStore.subscribe);

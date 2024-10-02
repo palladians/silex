@@ -1,9 +1,9 @@
 <script lang="ts">
-export const href = "";
-export const label = "";
+export let href = "";
+export let label = "";
 </script>
 
 <a {href} class="flex flex-col items-center justify-center gap-1">
     <slot size={28} />
-    <span class="text-sm">{label}</span>
+    <span class="text-sm text-white">{label}</span>
 </a>

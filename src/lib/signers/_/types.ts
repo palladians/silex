@@ -1,38 +1,19 @@
-export type DerivationPath = string;
-export type PublicKey = string;
-export type PrivateKey = string;
+import type { DerivationPath, PrivateKey, PublicKey } from "$lib/types";
 
-export type CommonSigner<T> = {
+export type CommonSignArgs = {
+	childPrivateKey: PrivateKey;
+	type: number;
+};
+
+type Sign<T extends CommonSignArgs> = (args: T) => Promise<string>;
+
+export type CommonSigner<T extends CommonSignArgs> = {
 	name: string;
 	slug: string;
-	getPublicKey: ({
-		privateKey,
-	}: {
-		privateKey: PrivateKey;
-	}) => Promise<PublicKey>;
-	deriveChildPrivateKey: ({
-		rootPrivateKey,
-		derivationPath,
-	}: {
+	getPublicKey: (args: { privateKey: PrivateKey }) => Promise<PublicKey>;
+	deriveChildPrivateKey: (args: {
 		rootPrivateKey: PrivateKey;
 		derivationPath: DerivationPath;
 	}) => Promise<string>;
-	signTransaction: ({
-		unsignedTransaction,
-		childPrivateKey,
-		options,
-	}: {
-		unsignedTransaction: T;
-		childPrivateKey: PrivateKey;
-		options?: Record<string, string>;
-	}) => Promise<string>;
-	signMessage: ({
-		message,
-		childPrivateKey,
-		options,
-	}: {
-		message: string;
-		childPrivateKey: PrivateKey;
-		options?: Record<string, string>;
-	}) => Promise<string>;
+	sign: Sign<T>;
 };

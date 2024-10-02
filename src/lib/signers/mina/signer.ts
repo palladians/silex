@@ -1,17 +1,19 @@
+import { arrayToPath } from "$lib/utils";
 import { HDKey, privateKeyToAccount } from "@mina-js/accounts";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import { base58check } from "@scure/base";
+import { match } from "ts-pattern";
 import type { MinaSigner, MinaSignerOptions } from "./types";
 import { legacySignatureConverter } from "./utils";
 
 type HDKeyToAccountOptions = {
 	hdKey: HDKey;
-	path: string;
+	path: number[];
 };
 
 const _deriveChildPrivateKey = ({ hdKey, path }: HDKeyToAccountOptions) => {
-	const childNode = hdKey.derive(path);
+	const childNode = hdKey.derive(arrayToPath(path));
 	if (!childNode.privateKey) throw new Error("Private key not found");
 	const childPrivateKeyArray = new Uint8Array(childNode.privateKey);
 	childPrivateKeyArray[0] &= 0x3f;
@@ -39,42 +41,36 @@ export const createSigner = (_: MinaSignerOptions = {}): MinaSigner => {
 			const hdKey = HDKey.fromExtendedKey(rootPrivateKey);
 			return _deriveChildPrivateKey({ hdKey, path: derivationPath });
 		},
-		signTransaction: async ({
-			unsignedTransaction,
-			childPrivateKey,
-			options,
-		}) => {
-			const minaNetwork = options?.minaNetwork;
-			if (!minaNetwork) throw new Error("Mina network not provided");
+		sign: async (signaturePayload) => {
 			const account = privateKeyToAccount({
-				privateKey: childPrivateKey,
-				network: minaNetwork as "mainnet" | "testnet",
+				privateKey: signaturePayload.childPrivateKey,
+				network: signaturePayload.network === 0 ? "mainnet" : "testnet",
 			});
-			const signedTransaction = await account.signTransaction({
-				transaction: unsignedTransaction,
-			});
-			return legacySignatureConverter(signedTransaction.signature).toBase58();
-		},
-		signMessage: async ({ message, childPrivateKey, options }) => {
-			const minaNetwork = options?.minaNetwork;
-			if (!minaNetwork) throw new Error("Mina network not provided");
-			const account = privateKeyToAccount({
-				privateKey: childPrivateKey,
-				network: minaNetwork as "mainnet" | "testnet",
-			});
-			const signedMessage = await account.signMessage({ message });
-			return legacySignatureConverter(signedMessage.signature).toBase58();
-		},
-		signFields: async ({ fields, childPrivateKey, options }) => {
-			const minaNetwork = options?.minaNetwork;
-			if (!minaNetwork) throw new Error("Mina network not provided");
-			const account = privateKeyToAccount({
-				privateKey: childPrivateKey,
-				network: minaNetwork as "mainnet" | "testnet",
-			});
-			const bigIntFields = fields.map((field) => BigInt(field));
-			const signedFields = await account.signFields({ fields: bigIntFields });
-			return signedFields.signature;
+			return match(signaturePayload)
+				.with({ type: 0 }, async ({ payload }) => {
+					const { signature } = await account.signMessage({
+						message: payload,
+					});
+					return legacySignatureConverter(signature).toBase58();
+				})
+				.with({ type: 1 }, async ({ payload }) => {
+					const txBody = {
+						...payload,
+						amount: BigInt(payload.amount ?? ""),
+						fee: BigInt(payload.fee ?? ""),
+						nonce: BigInt(payload.nonce ?? ""),
+					};
+					const { signature } = await account.signTransaction({
+						transaction: txBody,
+					});
+					return legacySignatureConverter(signature).toBase58();
+				})
+				.with({ type: 2 }, async ({ payload }) => {
+					const fields = payload.map((field) => BigInt(field));
+					const result = await account.signFields({ fields });
+					return result.signature;
+				})
+				.exhaustive();
 		},
 	};
 };

@@ -1,3 +1,7 @@
+import { stringToBytes } from "@scure/base";
+
+export const HARDENED_OFFSET: number = 0x80000000;
+
 interface TruncateProps {
 	value: string;
 	firstCharCount?: number;
@@ -19,4 +23,29 @@ export const truncateString = ({
 	const dots = ".".repeat(dotCount);
 
 	return `${firstPortion}${dots}${endPortion}`;
+};
+
+export const pathToArray = (derivationPath: string): number[] => {
+	const segments = derivationPath.split("/").slice(1);
+	return segments.map((segment) => {
+		const isHardened = segment.endsWith("'");
+		const index = Number.parseInt(segment, 10);
+		if (isHardened) {
+			return HARDENED_OFFSET + index;
+		}
+		return index;
+	});
+};
+
+export const arrayToPath = (derivationPath: number[]): string => {
+	return [
+		"m",
+		...derivationPath.map((index) => {
+			const isHardened = index >= HARDENED_OFFSET;
+			if (isHardened) {
+				return `${index - HARDENED_OFFSET}'`;
+			}
+			return index;
+		}),
+	].join("/");
 };
