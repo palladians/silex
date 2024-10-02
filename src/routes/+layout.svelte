@@ -22,10 +22,4 @@ onMount(() => {
 
 <Toaster />
 
-{#if $online && !development}
-    <div class="flex flex-1 flex-col justify-center items-center min-h-screen">
-        <p>You are online. It puts your vault at risk.</p>
-    </div>
-{:else}
-    <slot />
-{/if}
+<slot />
