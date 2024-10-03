@@ -1,5 +1,5 @@
 <script>
-import BottomNavigation from "$lib/components/bottom-navigation.svelte";
+    import BottomNavigation from "$lib/components/bottom-navigation.svelte";
 </script>
 
 <div class="flex flex-1 flex-col min-h-screen py-20">
